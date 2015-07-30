@@ -1,0 +1,719 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Windows.Forms;
+using System.IO;
+using System.IO.Ports;
+using System.Data.Odbc;
+using System.Collections;
+
+namespace SerijskaSaTajmerom
+{
+    public partial class Form1 : Form
+    {
+        public Form1()
+        {
+            InitializeComponent();
+            timer1.Tick +=new EventHandler(timer1_Tick);
+            timer1.Enabled = true;
+            timer1.Start();
+        }
+        // string str_odbc = "DSN=freqacc";
+
+        OdbcConnection odbcCON = new OdbcConnection("DSN=freqacc");
+        OdbcCommand odbcCMNDR = new OdbcCommand();
+        ArrayList alIDovi = new ArrayList();
+
+       // SerialDataReceivedEventHandler
+
+
+        //private void port1_DataReceived(object sender, SerialDataReceivedEventArgs e)
+        //{
+
+
+        //    SerialPort spZaPrekide = (SerialPort)sender;
+        //    const int bufSize = 12;
+        //    Byte[] buf = new Byte[bufSize];
+        //    Console.WriteLine("DATA RECEIVED!");
+        //    Console.WriteLine(spZaPrekide.Read(buf, 0, bufSize));
+
+        //}
+
+        private void lista_bolesti() 
+        {
+            lstbxBolesti.Items.Clear();
+            alIDovi.Clear();
+            string str_odb_query = "select * from frekvencije ";
+            str_odb_query += " ORDER BY frekvencije.naziv ASC  ";
+            odbcCMNDR.Connection = odbcCON;
+            odbcCON.Open();
+            odbcCMNDR.CommandText = str_odb_query;
+            OdbcDataReader odbcCitac = odbcCMNDR.ExecuteReader();
+            while (odbcCitac.Read())
+            {
+                lstbxBolesti.Items.Add(odbcCitac["naziv"].ToString() + " " + odbcCitac["bakterija"].ToString());
+                alIDovi.Add(odbcCitac["sifra"]);
+            }
+            odbcCON.Close();      
+        }
+        private void pocisti_polja() 
+        {
+            txtNaziv.Text = "";
+            txtBakterija.Text = "";
+            txtSinonim.Text = "";
+            txtNapomena.Text = "";
+            txt_f01.Text = "0";
+            txt_f02.Text = "0";
+            txt_f03.Text = "0";
+            txt_f04.Text = "0";
+            txt_f05.Text = "0";
+            txt_f06.Text = "0";
+            txt_f07.Text = "0";
+            txt_f08.Text = "0";
+            txt_f09.Text = "0";
+            txt_t01.Text = "0";
+            txt_t02.Text = "0";
+            txt_t03.Text = "0";
+            txt_t04.Text = "0";
+            txt_t05.Text = "0";
+            txt_t06.Text = "0";
+            txt_t07.Text = "0";
+            txt_t08.Text = "0";
+            txt_t09.Text = "0";
+
+        }
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+
+            try
+            {
+                string str_prijem, str_aktuelna_frekvencija;
+                double dbl_frekvencija;
+                string str_port_broj;
+
+                str_port_broj = "COM" + comboBox2.Text;
+
+                // MessageBox.Show(str_port_broj);
+
+                SerialPort serijskiport = new SerialPort();
+                // serijskiport.PortName = "COM5";
+                serijskiport.PortName = str_port_broj; 
+                serijskiport.BaudRate = 9600;
+                serijskiport.DataBits = 8;
+                serijskiport.StopBits = System.IO.Ports.StopBits.One;
+                serijskiport.Parity = System.IO.Ports.Parity.None;
+                
+                serijskiport.Open();  // Otvori port
+                serijskiport.Write("HU01C");   // Posalji upit
+                serijskiport.ReadTimeout = 1000;  // Za svaki slucaj se ogranici vreme citanja
+                System.Threading.Thread.Sleep(500); // Nakon upita sacekati pola sekunde da pristignu svi bajtovi       
+                str_prijem = serijskiport.ReadExisting();  // Procitaj bafer serijske           
+                serijskiport.Close();  // zatvori port
+                if (str_prijem.Length > 7)
+                {
+                    str_aktuelna_frekvencija = str_prijem.Substring(5);
+                }
+                else str_aktuelna_frekvencija = "0";
+                dbl_frekvencija = Convert.ToDouble(str_aktuelna_frekvencija);
+                dbl_frekvencija /= 1000.0;
+                str_aktuelna_frekvencija = dbl_frekvencija.ToString();
+                lblFrekvencija.Text = str_aktuelna_frekvencija;
+            }
+            catch (Exception ex) 
+            {
+                MessageBox.Show(ex.ToString());
+            }
+
+
+
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            
+            lista_bolesti();
+        }
+        private void serijskiport_DataReceived(object sender, System.IO.Ports.SerialDataReceivedEventArgs e)
+        {
+           
+        }
+
+        private void cmdNew_Click(object sender, EventArgs e)
+        {
+            int uslov1, uslov2, uslov3, uslov4, uslov5;
+
+            int int_id = 0;
+            string str_sql_select_max, str_sql_insert;
+
+            double dbl_f1, dbl_f2, dbl_f3;
+            double dbl_f4, dbl_f5, dbl_f6;
+            double dbl_f7, dbl_f8, dbl_f9;
+
+            int int_t1, int_t2, int_t3;
+            int int_t4, int_t5, int_t6;
+            int int_t7, int_t8, int_t9;
+
+            int int_broj_frekvencija;
+            string str_broj_frekvencija;
+
+            string str_naziv_sa_tildama;
+
+            
+            str_broj_frekvencija = comboBox1.Text;
+            int_broj_frekvencija = Convert.ToInt32(str_broj_frekvencija);
+
+            dbl_f1 = Convert.ToDouble(txt_f01.Text);
+            dbl_f2 = Convert.ToDouble(txt_f02.Text);
+            dbl_f3 = Convert.ToDouble(txt_f03.Text);
+            dbl_f4 = Convert.ToDouble(txt_f04.Text);
+            dbl_f5 = Convert.ToDouble(txt_f05.Text);
+            dbl_f6 = Convert.ToDouble(txt_f06.Text);
+            dbl_f7 = Convert.ToDouble(txt_f07.Text);
+            dbl_f8 = Convert.ToDouble(txt_f08.Text);
+            dbl_f9 = Convert.ToDouble(txt_f09.Text);
+
+            int_t1 = Convert.ToInt32(txt_t01.Text);
+            int_t2 = Convert.ToInt32(txt_t02.Text);
+            int_t3 = Convert.ToInt32(txt_t03.Text);
+            int_t4 = Convert.ToInt32(txt_t04.Text);
+            int_t5 = Convert.ToInt32(txt_t05.Text);
+            int_t6 = Convert.ToInt32(txt_t06.Text);
+            int_t7 = Convert.ToInt32(txt_t07.Text);
+            int_t8 = Convert.ToInt32(txt_t08.Text);
+            int_t9 = Convert.ToInt32(txt_t09.Text);
+
+            if (int_broj_frekvencija <= 0)
+            {
+                MessageBox.Show("Broj relevantnih frekvencija ne može biti nula", "Greška", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                uslov5 = 0;
+            }
+            else uslov5 = 1;
+
+
+            if (dbl_f1 <= 0.0)
+            {
+                MessageBox.Show("Prva frekvencija ne može biti nula", "Greška", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                uslov3 = 0;
+            }
+            else uslov3 = 1;
+            if (int_t1 <= 0.0)
+            {
+                MessageBox.Show("Prvo vreme ne može biti nula", "Greška", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                uslov4 = 0;
+            }
+            else uslov4 = 1;
+
+            if (txtNaziv.Text == "")
+            {
+                MessageBox.Show("Polje za unos naziva je prazno", "Greška", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                uslov1 = 0;
+            }
+            else uslov1 = 1;
+            if (txtBakterija.Text == "")
+            {
+                MessageBox.Show("Polje za unos izazivača bolesi je prazno", "Greška", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                uslov2 = 0;
+            }
+            else uslov2 = 1;
+
+            if ((uslov1 == 1) && (uslov2 == 1) && (uslov3 == 1) && (uslov4 == 1) && (uslov5 == 1)) // Bitna tekstualna polja nisu prazna
+            {
+
+                str_sql_select_max = " SELECT MAX(frekvencije.sifra) FROM frekvencije ";
+
+                odbcCON.Open();
+                odbcCMNDR.CommandText = str_sql_select_max;
+                int_id = Convert.ToInt32(odbcCMNDR.ExecuteScalar());
+                odbcCMNDR.ExecuteNonQuery();
+                odbcCON.Close();
+
+                if (int_id <= 0) int_id = 1;
+                else int_id++;
+
+                try
+                {
+                    str_naziv_sa_tildama = System.Text.RegularExpressions.Regex.Replace(txtNaziv.Text, @"[\000\010\011\012\015\032\042\047\134\140]", "\\$0");
+                }
+                catch (Exception Ex)
+                {
+                    str_naziv_sa_tildama = Ex.ToString();
+                }
+
+                str_sql_insert = " INSERT INTO frekvencije ";
+                str_sql_insert += " ( sifra, ";
+                str_sql_insert += " naziv, ";
+                str_sql_insert += " bakterija, ";
+                str_sql_insert += " sinonim, ";
+                str_sql_insert += " indik_napomena, ";
+                str_sql_insert += " br_relevantnih_f, ";
+                str_sql_insert += " f01_d, ";
+                str_sql_insert += " f02_d, ";
+                str_sql_insert += " f03_d, ";
+                str_sql_insert += " f04_d, ";
+                str_sql_insert += " f05_d, ";
+                str_sql_insert += " f06_d, ";
+                str_sql_insert += " f07_d, ";
+                str_sql_insert += " f08_d, ";
+                str_sql_insert += " f09_d, ";
+                str_sql_insert += " t01_int, ";
+                str_sql_insert += " t02_int, ";
+                str_sql_insert += " t03_int, ";
+                str_sql_insert += " t04_int, ";
+                str_sql_insert += " t05_int, ";
+                str_sql_insert += " t06_int, ";
+                str_sql_insert += " t07_int, ";
+                str_sql_insert += " t08_int, ";
+                str_sql_insert += " t09_int ) ";
+                str_sql_insert += " VALUES (  " + int_id.ToString() + ", "   ;     // '@ID',   ";
+                str_sql_insert += "'" + str_naziv_sa_tildama + "', "; // " '@NNAZIV', ";
+                str_sql_insert += "'" + txtBakterija.Text + "', ";   // " '@BBAKTERIJA', ";
+                str_sql_insert += "'" + txtSinonim.Text + "', ";
+                str_sql_insert += "'" + txtNapomena.Text + "', ";
+                str_sql_insert += int_broj_frekvencija.ToString() + ", ";  // " '@BRRELFR', ";
+                str_sql_insert += dbl_f1.ToString() + ", ";   // " '@F1', ";
+                str_sql_insert += dbl_f2.ToString() + ", ";   // " '@F2', ";
+                str_sql_insert += dbl_f3.ToString() + ", ";   //" '@F3', ";
+                str_sql_insert += dbl_f4.ToString() + ", ";   // " '@F4', ";
+                str_sql_insert += dbl_f5.ToString() + ", ";   //" '@F5', ";
+                str_sql_insert += dbl_f6.ToString() + ", ";   // " '@F6', ";
+                str_sql_insert += dbl_f7.ToString() + ", ";   //" '@F7', ";
+                str_sql_insert += dbl_f8.ToString() + ", ";   //" '@F8', ";
+                str_sql_insert += dbl_f9.ToString() + ", ";   //" '@F9', ";
+                str_sql_insert += int_t1.ToString() + ", ";   //" '@T1', ";
+                str_sql_insert += int_t2.ToString() + ", ";   // " '@T2', ";
+                str_sql_insert += int_t3.ToString() + ", ";   //" '@T3', ";
+                str_sql_insert += int_t4.ToString() + ", ";   //" '@T4', ";
+                str_sql_insert += int_t5.ToString() + ", ";   //" '@T5', ";
+                str_sql_insert += int_t6.ToString() + ", ";   //" '@T6', ";
+                str_sql_insert += int_t7.ToString() + ", ";   //" '@T7', ";
+                str_sql_insert += int_t8.ToString() + ", ";  // " '@T8', ";
+                str_sql_insert += int_t9.ToString() + " );"; //  +", ";  //" '@T9' ); ";
+
+                //odbcCMNDR.Parameters.AddWithValue("T9", OdbcType.Int).Value = int_t9;
+
+                odbcCON.Open();
+                odbcCMNDR.CommandText = str_sql_insert;
+                odbcCMNDR.ExecuteNonQuery();
+                odbcCON.Close();
+
+                odbcCMNDR.Parameters.Clear();
+                lista_bolesti();
+                pocisti_polja();
+                cmdNew.Enabled = false;
+            
+            
+            }
+
+
+        }
+
+        private void lstbxBolesti_DoubleClick(object sender, EventArgs e)
+        {
+            
+            try
+            {
+                pocisti_polja();
+                cmdUpdate.Enabled = true;
+                cmdDelete.Enabled = true;
+                
+                int int_selected_index = lstbxBolesti.SelectedIndex;
+                string str_sql_retrieve = " select * from frekvencije where sifra =" + alIDovi[int_selected_index].ToString();
+                odbcCMNDR.Connection = odbcCON;
+                odbcCON.Open();
+                odbcCMNDR.CommandText = str_sql_retrieve;
+                OdbcDataReader odbcCitac = odbcCMNDR.ExecuteReader();
+                while (odbcCitac.Read()) 
+                {
+                    txtNaziv.Text = odbcCitac["naziv"].ToString();
+                    txtBakterija.Text = odbcCitac["bakterija"].ToString();
+                    txtSinonim.Text = odbcCitac["sinonim"].ToString();
+                    txtNapomena.Text = odbcCitac["indik_napomena"].ToString();
+                    comboBox1.Text = odbcCitac["br_relevantnih_f"].ToString();
+                    txt_f01.Text = odbcCitac["f01_d"].ToString();
+                    txt_f02.Text = odbcCitac["f02_d"].ToString();
+                    txt_f03.Text = odbcCitac["f03_d"].ToString();
+                    txt_f04.Text = odbcCitac["f04_d"].ToString();
+                    txt_f05.Text = odbcCitac["f05_d"].ToString();
+                    txt_f06.Text = odbcCitac["f06_d"].ToString();
+                    txt_f07.Text = odbcCitac["f07_d"].ToString();
+                    txt_f08.Text = odbcCitac["f08_d"].ToString();
+                    txt_f09.Text = odbcCitac["f09_d"].ToString();
+
+                    txt_t01.Text = odbcCitac["t01_int"].ToString();
+                    txt_t02.Text = odbcCitac["t02_int"].ToString();
+                    txt_t03.Text = odbcCitac["t03_int"].ToString();
+                    txt_t04.Text = odbcCitac["t04_int"].ToString();
+                    txt_t05.Text = odbcCitac["t05_int"].ToString();
+                    txt_t06.Text = odbcCitac["t06_int"].ToString();
+                    txt_t07.Text = odbcCitac["t07_int"].ToString();
+                    txt_t08.Text = odbcCitac["t08_int"].ToString();
+                    txt_t09.Text = odbcCitac["t09_int"].ToString();
+
+
+
+                }
+                odbcCON.Close();
+                string str_poruka_za_slanje;
+                // 23560001392000135600013920001356000139200013560001392000135600013920001T
+                double dbl_f1, dbl_f2, dbl_f3, dbl_f4, dbl_f5, dbl_f6, dbl_f7, dbl_f8, dbl_f9;
+                int int_f1, int_f2, int_f3, int_f4, int_f5, int_f6, int_f7, int_f8, int_f9;
+                string str_f1, str_f2, str_f3, str_f4, str_f5, str_f6, str_f7, str_f8, str_f9;
+                int int_t1, int_t2, int_t3, int_t4, int_t5, int_t6, int_t7, int_t8, int_t9;
+                string str_t1, str_t2, str_t3, str_t4, str_t5, str_t6, str_t7, str_t8, str_t9;
+
+
+                if (txt_t01.Text.Length > 0)  int_t1 = Convert.ToInt32(txt_t01.Text);
+                else int_t1 = 1;
+                if (txt_t02.Text.Length > 0)  int_t2 = Convert.ToInt32(txt_t02.Text);
+                else int_t2 = 1;
+                if (txt_t03.Text.Length > 0)  int_t3 = Convert.ToInt32(txt_t03.Text);
+                else int_t3 = 1;
+                if (txt_t04.Text.Length > 0)  int_t4 = Convert.ToInt32(txt_t04.Text);
+                else int_t4 = 1;
+                if (txt_t05.Text.Length > 0)  int_t5 = Convert.ToInt32(txt_t05.Text);
+                else int_t5 = 1;
+                if (txt_t06.Text.Length > 0)  int_t6 = Convert.ToInt32(txt_t06.Text);
+                else int_t6 = 1;
+                if (txt_t07.Text.Length > 0)  int_t7 = Convert.ToInt32(txt_t07.Text);
+                else int_t7 = 1;
+                if (txt_t08.Text.Length > 0)  int_t8 = Convert.ToInt32(txt_t08.Text);
+                else int_t8 = 1;
+                if (txt_t09.Text.Length > 0)  int_t9 = Convert.ToInt32(txt_t09.Text);
+                else int_t9 = 1;
+
+                if (int_t1 == 0) int_t1 = 1;
+                if (int_t2 == 0) int_t2 = 1;
+                if (int_t3 == 0) int_t3 = 1;
+                if (int_t4 == 0) int_t4 = 1;
+                if (int_t5 == 0) int_t5 = 1;
+                if (int_t6 == 0) int_t6 = 1;
+                if (int_t7 == 0) int_t7 = 1;
+                if (int_t8 == 0) int_t8 = 1;
+                if (int_t9 == 0) int_t9 = 1;
+
+
+
+
+                str_t1 = int_t1.ToString();
+                str_t2 = int_t2.ToString();
+                str_t3 = int_t3.ToString();
+                str_t4 = int_t4.ToString();
+                str_t5 = int_t5.ToString();
+                str_t6 = int_t6.ToString();
+                str_t7 = int_t7.ToString();
+                str_t8 = int_t8.ToString();
+                str_t9 = int_t9.ToString();
+
+                
+                dbl_f1 = Convert.ToDouble(txt_f01.Text);
+
+                if (txt_f02.Text.Length > 0) dbl_f2 = Convert.ToDouble(txt_f02.Text);
+                else dbl_f2 = 112.0;
+                if (txt_f03.Text.Length > 0) dbl_f3 = Convert.ToDouble(txt_f03.Text);
+                else dbl_f3 = 112.0;
+                if (txt_f04.Text.Length > 0) dbl_f4 = Convert.ToDouble(txt_f04.Text);
+                else dbl_f4 = 112.0;
+                if (txt_f05.Text.Length > 0) dbl_f5 = Convert.ToDouble(txt_f05.Text);
+                else dbl_f5 = 112.0;
+                if (txt_f06.Text.Length > 0) dbl_f6 = Convert.ToDouble(txt_f06.Text);
+                else dbl_f6 = 112.0;
+                if (txt_f07.Text.Length > 0) dbl_f7= Convert.ToDouble(txt_f07.Text);
+                else dbl_f7 = 112.0;
+                if (txt_f08.Text.Length > 0) dbl_f8 = Convert.ToDouble(txt_f08.Text);
+                else dbl_f8 = 112.0;
+                if (txt_f09.Text.Length > 0) dbl_f9 = Convert.ToDouble(txt_f09.Text);
+                else dbl_f9 = 112.0;
+
+                if (dbl_f1 == 0.0) dbl_f1 = 112.0;
+                if (dbl_f2 == 0.0) dbl_f2 = 112.0;
+                if (dbl_f3 == 0.0) dbl_f3 = 112.0;
+                if (dbl_f4 == 0.0) dbl_f4 = 112.0;
+                if (dbl_f5 == 0.0) dbl_f5 = 112.0;
+                if (dbl_f6 == 0.0) dbl_f6 = 112.0;
+                if (dbl_f7 == 0.0) dbl_f7 = 112.0;
+                if (dbl_f8 == 0.0) dbl_f8 = 112.0;
+                if (dbl_f9 == 0.0) dbl_f9 = 112.0;
+                             
+                int_f1 = (int)( dbl_f1 * 1000.0 );
+                int_f2 = (int)( dbl_f2 * 1000.0 );
+                int_f3 = (int)( dbl_f3 * 1000.0 );
+                int_f4 = (int)( dbl_f4 * 1000.0 );
+                int_f5 = (int)( dbl_f5 * 1000.0 );
+                int_f6 = (int)( dbl_f6 * 1000.0 );
+                int_f7 = (int)( dbl_f7 * 1000.0 );
+                int_f8 = (int)( dbl_f8 * 1000.0 );
+                int_f9 = (int)( dbl_f9 * 1000.0 );
+
+                str_f1 = int_f1.ToString();
+                str_f2 = int_f2.ToString();
+                str_f3 = int_f3.ToString();
+                str_f4 = int_f4.ToString();
+                str_f5 = int_f5.ToString();
+                str_f6 = int_f6.ToString();
+                str_f7 = int_f7.ToString();
+                str_f8 = int_f8.ToString();
+                str_f9 = int_f9.ToString();
+
+                if ((int_f1 >= 10000) && (int_f1 < 100000)) str_f1 = "0" + str_f1;
+                if ((int_f2 >= 10000) && (int_f2 < 100000)) str_f2 = "0" + str_f2;
+                if ((int_f3 >= 10000) && (int_f3 < 100000)) str_f3 = "0" + str_f3;
+                if ((int_f4 >= 10000) && (int_f4 < 100000)) str_f4 = "0" + str_f4;
+                if ((int_f5 >= 10000) && (int_f5 < 100000)) str_f5 = "0" + str_f5;
+                if ((int_f6 >= 10000) && (int_f6 < 100000)) str_f6 = "0" + str_f6;
+                if ((int_f7 >= 10000) && (int_f7 < 100000)) str_f7 = "0" + str_f7;
+                if ((int_f8 >= 10000) && (int_f8 < 100000)) str_f8 = "0" + str_f8;
+                if ((int_f9 >= 10000) && (int_f9 < 100000)) str_f9 = "0" + str_f9;
+
+                if ((int_f1 >= 1000) && (int_f1 < 10000)) str_f1 = "00" + str_f1;
+                if ((int_f2 >= 1000) && (int_f2 < 10000)) str_f2 = "00" + str_f2;
+                if ((int_f3 >= 1000) && (int_f3 < 10000)) str_f3 = "00" + str_f3;
+                if ((int_f4 >= 1000) && (int_f4 < 10000)) str_f4 = "00" + str_f4;
+                if ((int_f5 >= 1000) && (int_f5 < 10000)) str_f5 = "00" + str_f5;
+                if ((int_f6 >= 1000) && (int_f6 < 10000)) str_f6 = "00" + str_f6;
+                if ((int_f7 >= 1000) && (int_f7 < 10000)) str_f7 = "00" + str_f7;
+                if ((int_f8 >= 1000) && (int_f8 < 10000)) str_f8 = "00" + str_f8;
+                if ((int_f9 >= 1000) && (int_f9 < 10000)) str_f9 = "00" + str_f9;
+
+                if ((int_f1 >= 100) && (int_f1 < 1000)) str_f1 = "000" + str_f1;
+                if ((int_f2 >= 100) && (int_f2 < 1000)) str_f2 = "000" + str_f2;
+                if ((int_f3 >= 100) && (int_f3 < 1000)) str_f3 = "000" + str_f3;
+                if ((int_f4 >= 100) && (int_f4 < 1000)) str_f4 = "000" + str_f4;
+                if ((int_f5 >= 100) && (int_f5 < 1000)) str_f5 = "000" + str_f5;
+                if ((int_f6 >= 100) && (int_f6 < 1000)) str_f6 = "000" + str_f6;
+                if ((int_f7 >= 100) && (int_f7 < 1000)) str_f7 = "000" + str_f7;
+                if ((int_f8 >= 100) && (int_f8 < 1000)) str_f8 = "000" + str_f8;
+                if ((int_f9 >= 100) && (int_f9 < 1000)) str_f9 = "000" + str_f9;	
+	
+                str_poruka_za_slanje = "HU01Z";
+                str_poruka_za_slanje += comboBox1.Text;
+
+                str_poruka_za_slanje += str_f1;
+                str_poruka_za_slanje += str_t1;
+
+                str_poruka_za_slanje += str_f2;
+                str_poruka_za_slanje += str_t2;
+
+                str_poruka_za_slanje += str_f3;
+                str_poruka_za_slanje += str_t3;
+
+                str_poruka_za_slanje += str_f4;
+                str_poruka_za_slanje += str_t4;
+
+                str_poruka_za_slanje += str_f5;
+                str_poruka_za_slanje += str_t5;
+
+                str_poruka_za_slanje += str_f6;
+                str_poruka_za_slanje += str_t6;
+
+                str_poruka_za_slanje += str_f7;
+                str_poruka_za_slanje += str_t7;
+
+                str_poruka_za_slanje += str_f8;
+                str_poruka_za_slanje += str_t8;
+
+                str_poruka_za_slanje += str_f9;
+                str_poruka_za_slanje += str_t9;
+
+                str_poruka_za_slanje += "1120001F"; // bug u hardveru da se salje i 10-a frekvencija koja se ne prima
+
+                
+                txtSend.Text = str_poruka_za_slanje;
+
+                cmdSend.Enabled = true;
+
+            }
+            catch 
+            { 
+            }
+
+
+
+        }
+
+        private void lstbxBolesti_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void priprema_Click(object sender, EventArgs e)
+        {
+            pocisti_polja();
+            cmdNew.Enabled = true;
+        }
+
+        private void cmdUpdate_Click(object sender, EventArgs e)
+        {
+
+            int int_selected_index = lstbxBolesti.SelectedIndex;
+            string str_id_selektovanog;
+            str_id_selektovanog = alIDovi[int_selected_index].ToString();
+           // string str_sql_retrieve = " select * from frekvencije where sifra =" + str_id_selektovanog;
+
+            string str_sql_update = " update frekvencije set ";
+            str_sql_update += " naziv = '" + txtNaziv.Text + "', ";
+            str_sql_update += " bakterija = '" + txtBakterija.Text + "', ";
+            str_sql_update += " sinonim = '" + txtSinonim.Text + "', ";
+            str_sql_update += " indik_napomena ='" + txtNapomena.Text + "', ";
+            str_sql_update += " br_relevantnih_f = " + comboBox1.Text + ", ";
+            str_sql_update += " f01_d = " + txt_f01.Text + ", ";
+            if (txt_f02.Text.Length > 0) str_sql_update += " f02_d = " + txt_f02.Text + ", ";
+            else str_sql_update += " f02_d = " + "0, ";
+            if (txt_f03.Text.Length > 0) str_sql_update += " f03_d = " + txt_f03.Text + ", ";
+            else str_sql_update += " f03_d = " + "0, ";
+            if (txt_f04.Text.Length > 0) str_sql_update += " f04_d = " + txt_f04.Text + ", ";
+            else str_sql_update += " f04_d = " + "0, ";
+            if (txt_f05.Text.Length > 0) str_sql_update += " f05_d = " + txt_f05.Text + ", ";
+            else str_sql_update += " f05_d = " + "0, ";
+            if (txt_f06.Text.Length > 0) str_sql_update += " f06_d = " + txt_f06.Text + ", ";
+            else str_sql_update += " f06_d = " + "0, ";
+            if (txt_f07.Text.Length > 0) str_sql_update += " f07_d = " + txt_f07.Text + ", ";
+            else str_sql_update += " f07_d = " + "0, ";
+            if (txt_f08.Text.Length > 0) str_sql_update += " f08_d = " + txt_f08.Text + ", ";
+            else str_sql_update += " f08_d = " + "0, ";
+            if (txt_f09.Text.Length > 0) str_sql_update += " f09_d = " + txt_f09.Text + ", ";
+            else str_sql_update += " f09_d = " + "0, ";
+            if (txt_t01.Text.Length > 0) str_sql_update += " t01_int = " + txt_t01.Text + ", ";
+            else str_sql_update += " t01_int = " + "0, ";
+            if (txt_t02.Text.Length > 0) str_sql_update += " t02_int = " + txt_t02.Text + ", ";
+            else str_sql_update += " t02_int = " + "0, ";
+            if (txt_t03.Text.Length > 0) str_sql_update += " t03_int = " + txt_t03.Text + ", ";
+            else str_sql_update += " t03_int = " + "0, ";
+            if (txt_t04.Text.Length > 0) str_sql_update += " t04_int = " + txt_t04.Text + ", ";
+            else str_sql_update += " t04_int = " + "0, ";
+            if (txt_t05.Text.Length > 0) str_sql_update += " t05_int = " + txt_t05.Text + ", ";
+            else str_sql_update += " t05_int = " + "0, ";
+            if (txt_t06.Text.Length > 0) str_sql_update += " t06_int = " + txt_t06.Text + ", ";
+            else str_sql_update += " t06_int = " + "0, ";
+            if (txt_t07.Text.Length > 0) str_sql_update += " t07_int = " + txt_t07.Text + ", ";
+            else str_sql_update += " t07_int = " + "0, ";
+            if (txt_t08.Text.Length > 0) str_sql_update += " t08_int = " + txt_t08.Text + ", ";
+            else str_sql_update += " t08_int = " + "0, ";
+            if (txt_t09.Text.Length > 0) str_sql_update += " t09_int = " + txt_t09.Text + " ";
+            else str_sql_update += " t09_int = " + "0 ";
+            str_sql_update += " where frekvencije.sifra =  " + str_id_selektovanog;
+
+
+            //MessageBox.Show(str_sql_update);
+
+
+            odbcCON.Open();
+            odbcCMNDR.CommandText = str_sql_update;
+            odbcCMNDR.ExecuteNonQuery();
+            odbcCON.Close();
+
+            pocisti_polja();
+            lista_bolesti();
+            
+
+            cmdUpdate.Enabled = false;
+        }
+
+        private void cmdDelete_Click(object sender, EventArgs e)
+        {
+            cmdDelete.Enabled = false;
+
+            string str_bolest = lstbxBolesti.Items[lstbxBolesti.SelectedIndex].ToString();
+
+            DialogResult dlDijalog = MessageBox.Show("Želite li da obrišete " + str_bolest + "?","Pitnje",MessageBoxButtons.YesNo,MessageBoxIcon.Question);
+
+            if (dlDijalog == DialogResult.Yes) 
+            {
+                string str_selektovan_id = alIDovi[lstbxBolesti.SelectedIndex].ToString();
+                string str_sql_delete = "delete from frekvencije where sifra =" + str_selektovan_id;
+
+                odbcCON.Open();
+                odbcCMNDR.CommandText = str_sql_delete;
+                odbcCMNDR.ExecuteNonQuery();
+                odbcCON.Close();
+
+
+                pocisti_polja();
+                lista_bolesti();
+                cmdUpdate.Enabled = true;
+            
+            }
+
+
+        }
+
+        private void cmdCancel_Click(object sender, EventArgs e)
+        {
+            pocisti_polja();
+            lista_bolesti();
+            cmdUpdate.Enabled = false;
+            cmdDelete.Enabled = false;
+            txtSend.Text = "";
+            cmdSend.Enabled = false;
+        }
+
+        private void cmdFind_Click(object sender, EventArgs e)
+        {
+            lstbxBolesti.Items.Clear();
+            alIDovi.Clear();
+
+            string str_trazi = txtFind.Text;
+            // string str_sql_like = "select frekvencije.naziv, frekvencije.bakterija from frekvencije  ";
+            string str_sql_like = "select * from frekvencije  ";
+            str_sql_like += " WHERE ( frekvencije.naziv like '%" + txtFind.Text + "%' ) OR  ";
+            str_sql_like += " frekvencije.bakterija like '%" + txtFind.Text + "%'  ";
+            str_sql_like += " ORDER BY frekvencije.naziv ASC ";
+
+            // MessageBox.Show(str_sql_like);
+
+            odbcCON.Open();
+            odbcCMNDR.CommandText = str_sql_like;
+            OdbcDataReader odbcCitac = odbcCMNDR.ExecuteReader();
+            while (odbcCitac.Read() ) 
+            {
+                lstbxBolesti.Items.Add(odbcCitac["naziv"].ToString() + " " + odbcCitac["bakterija"].ToString());
+                alIDovi.Add(odbcCitac["sifra"]);      
+            }
+            odbcCON.Close();
+
+
+       }
+
+        private void cmdSend_Click(object sender, EventArgs e)
+        {
+
+            try
+            {
+                string str_port_broj;
+
+                str_port_broj = "COM" + comboBox2.Text;
+
+                // MessageBox.Show(str_port_broj);
+
+                string str_prijem, str_slanje;
+                str_slanje = txtSend.Text;
+                SerialPort serijskiport = new SerialPort();
+                // serijskiport.PortName = "COM6";
+                serijskiport.PortName = str_port_broj;
+                serijskiport.BaudRate = 9600;
+                serijskiport.DataBits = 8;
+                serijskiport.StopBits = System.IO.Ports.StopBits.One;
+                serijskiport.Parity = System.IO.Ports.Parity.None;
+                serijskiport.Open();  // Otvori port
+                //serijskiport.Write("HU01C");   // Posalji upit
+                // serijskiport.Write("ZRST");   // Resetuj zaper
+                serijskiport.Write(str_slanje);
+                serijskiport.ReadTimeout = 1000;  // Za svaki slucaj se ogranici vreme citanja
+                System.Threading.Thread.Sleep(500); // Nakon upita sacekati pola sekunde da pristignu svi bajtovi       
+                str_prijem = serijskiport.ReadExisting();  // Procitaj bafer serijske
+                serijskiport.Close();  // zatvori port
+                cmdSend.Enabled = false;
+            }
+            catch (Exception ex) 
+            {
+                MessageBox.Show(ex.ToString());
+            }
+
+        }
+
+    }
+}
